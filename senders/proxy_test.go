@@ -1,6 +1,7 @@
 package senders
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -22,8 +23,12 @@ func TestProxyStress(t *testing.T) {
 
 	// Generate a nasty amount of data
 	n := 100000
+	m := make(map[string]string)
+	for i := 0; i < 20; i++ {
+		m["k"+strconv.Itoa(i)] = "v" + strconv.Itoa(i)
+	}
 	for i := 0; i < n; i++ {
-		require.NoError(t, s.SendMetric("junk.garbage", 0, time.Now().UnixNano(), "some_source", nil))
+		require.NoError(t, s.SendMetric("junk.garbage", 0, time.Now().UnixNano(), "some_source_%d", m))
 	}
 	require.NoError(t, s.Flush())
 	s.Close()

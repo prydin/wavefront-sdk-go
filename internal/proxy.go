@@ -3,12 +3,33 @@ package internal
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
 )
+
+type ResilientWriter struct {
+	w io.Writer
+}
+
+func (r *ResilientWriter) Write(p []byte) (int, error) {
+	remaining := len(p)
+	for {
+		n, err := r.w.Write(p)
+		if err != nil {
+			return 0, err
+		}
+		remaining -= n
+		if remaining == 0 {
+			return len(p), nil
+		}
+		log.Printf("Short write: n=%d, remaining=%d", n, remaining)
+		p = p[n:]
+	}
+}
 
 type ProxyConnectionHandler struct {
 	address     string
@@ -56,7 +77,7 @@ func (handler *ProxyConnectionHandler) Connect() error {
 		return fmt.Errorf("unable to connect to Wavefront proxy at address: %s, err: %q", handler.address, err)
 	}
 	log.Printf("connected to Wavefront proxy at address: %s", handler.address)
-	handler.writer = bufio.NewWriter(handler.conn)
+	handler.writer = bufio.NewWriter(&ResilientWriter{w: handler.conn})
 	return nil
 }
 
